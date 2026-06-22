@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from config import LOG_FILE
 
 
@@ -31,4 +31,25 @@ def log_interaction(question: str, tier: str, response: str) -> None:
 
     Design your log entry in specs/auditor-spec.md before implementing here.
     """
-    pass
+    os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
+
+    question_text = (question or "")
+    response_text = (response or "")
+    question_truncated = question_text[:300]
+    response_preview = response_text[:200]
+
+    record = {
+      "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+      "tier": tier,
+      "question": question_truncated,
+      "response_preview": response_preview,
+      "question_length": len(question_text),
+      "response_length": len(response_text),
+    }
+
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+      f.write(json.dumps(record, ensure_ascii=True) + "\n")
+
+    print(
+      f'[LOGGED] tier={tier} | "{question_truncated}" -> {len(response_text)} chars'
+    )

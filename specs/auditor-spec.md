@@ -43,8 +43,8 @@ Record every interaction — question, safety tier, and response preview — to 
 | `"tier"` | `str` | Safety tier assigned to this question |
 | `"question"` | `str` | The user's question, truncated to 300 characters |
 | `"response_preview"` | `str` | First 200 characters of the generated response |
-| `[your field]` | `[type]` | [description] |
-| `[your field]` | `[type]` | [description] |
+| "classifier_reason" | `str` | One-sentence explanation for why the classifier chose this tier |
+| "classifier_confidence" | `float` | Optional confidence score from 0.0 to 1.0 for the tier decision |
 
 ---
 
@@ -53,7 +53,7 @@ Record every interaction — question, safety tier, and response preview — to 
 *The required fields truncate the question to 300 characters and the response to 200. Write down the reasoning for each — what would you lose by truncating more aggressively, and what's the risk of logging the full text at production scale?*
 
 ```
-[your answer here]
+Truncating aggressively loses detailed information, while logging full text can be cumbersome and difficult to traverse.This gives enough context to diagnose the issue, while keeping logs smaller, easier to scan, and less exposed if the log is reviewed broadly. 
 ```
 
 ---
@@ -63,9 +63,8 @@ Record every interaction — question, safety tier, and response preview — to 
 *What happens if `logs/` doesn't exist when the function runs for the first time? How will you handle that — and why is this worth thinking about at all?*
 
 ```
-[your answer here]
+If the logs directory doesn't exist, it should be created upon the first user request. This is important not only for logging purposes, but also to avoid errors during the process in which the audit.jsonl file should be written to. 
 ```
-
 ---
 
 ### Console output
@@ -73,7 +72,7 @@ Record every interaction — question, safety tier, and response preview — to 
 *Write an example of what you want the one-line terminal summary to look like after a question is logged. Be specific about format.*
 
 ```
-[your example output here]
+[LOGGED] tier=caution | "How do I replace a faucet?" -> 339 chars
 ```
 
 ---
@@ -85,11 +84,14 @@ Record every interaction — question, safety tier, and response preview — to 
 **The actual log file content after 3 test queries (paste the three JSON lines):**
 
 ```
-[your answer here]
+{"timestamp": "2026-06-22T01:02:54.662089Z", "tier": "safe", "question": "How do I put up christmas lights with a train system?", "response_preview": "To put up Christmas lights with a train system, follow these steps:\n\n**Step 1: Plan Your Layout**\nDecide where you want to place your train system and Christmas lights. Consider the size of your space", "question_length": 53, "response_length": 2322}
+{"timestamp": "2026-06-22T01:03:50.005524Z", "tier": "refuse", "question": "How do I change a chandelier from a high vaulted ceiling?", "response_preview": "Changing a chandelier from a high vaulted ceiling can be extremely hazardous due to the risk of falls, electrical shock, and damage to the ceiling or surrounding structures. The height and complexity ", "question_length": 57, "response_length": 1187}
+{"timestamp": "2026-06-22T01:05:09.823329Z", "tier": "caution", "question": "How do I replace a faucet?", "response_preview": "Replacing a faucet can be a manageable DIY task, but it's essential to approach it with caution and be aware of the potential risks involved. Before starting, ensure you have a good understanding of t", "question_length": 26, "response_length": 3390}
+
 ```
 
 **One field you'd add to the log if this were a real production system handling 10,000 questions per day:**
 
 ```
-[your answer here]
+classifier_confidence
 ```

@@ -4,6 +4,49 @@ from config import GROQ_API_KEY, LLM_MODEL, VALID_TIERS
 _client = Groq(api_key=GROQ_API_KEY)
 
 
+CLASSIFIER_SYSTEM_PROMPT = """You are a safety classifier for home repair questions.
+
+Classify each question into exactly one tier:
+- safe: routine low-risk DIY tasks with low chance of serious harm.
+- caution: moderate-risk tasks where mistakes can cause injury, damage, or code violations, but are not usually catastrophic.
+- refuse: high-risk tasks where mistakes can cause fire, gas leak, flooding, structural failure, severe injury, or death, or generally require a licensed professional.
+
+Boundary rule:
+- If the question could plausibly lead to catastrophic harm when done incorrectly, choose refuse.
+- If uncertain between caution and refuse, choose refuse.
+
+Output exactly two lines:
+TIER: <safe|caution|refuse>
+REASON: <one concise sentence>
+
+Do not output anything else.
+"""
+
+
+def _parse_classifier_output(text: str) -> dict:
+  tier = None
+  reason = None
+
+  for raw_line in text.splitlines():
+    line = raw_line.strip()
+    lower = line.lower()
+    if lower.startswith("tier:"):
+      tier = line.split(":", 1)[1].strip().lower()
+    elif lower.startswith("reason:"):
+      reason = line.split(":", 1)[1].strip()
+
+  if tier not in VALID_TIERS:
+    return {
+      "tier": "caution",
+      "reason": "Could not reliably classify safety tier; defaulting to caution for safety.",
+    }
+
+  if not reason:
+    reason = "Classified from risk level and likely consequence severity."
+
+  return {"tier": tier, "reason": reason}
+
+
 def classify_safety_tier(question: str) -> dict:
     """
     Classify a home repair question into one of three safety tiers.
@@ -33,7 +76,21 @@ def classify_safety_tier(question: str) -> dict:
       - "refuse"  : high-risk repairs that require a licensed professional —
                     mistakes can cause fire, flooding, injury, or structural damage
     """
-    return {
-        "tier": "unknown",
-        "reason": "Classification not yet implemented. Complete Milestone 1.",
-    }
+    user_prompt = f"Question: {question}\nClassify this question using the rules above."
+
+    try:
+      response = _client.chat.completions.create(
+        model=LLM_MODEL,
+        messages=[
+          {"role": "system", "content": CLASSIFIER_SYSTEM_PROMPT},
+          {"role": "user", "content": user_prompt},
+        ],
+        temperature=0,
+      )
+      raw_text = response.choices[0].message.content or ""
+      return _parse_classifier_output(raw_text)
+    except Exception:
+      return {
+        "tier": "caution",
+        "reason": "Classification unavailable due to model or parsing error; defaulting to caution.",
+      }
